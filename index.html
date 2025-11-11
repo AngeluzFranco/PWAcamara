@@ -32,6 +32,16 @@
         margin-bottom: 1rem; 
       }
       
+      #switchCamera {
+        background: #17a2b8;
+        order: 1; /* Posicionar entre "Abrir" y "Tomar" */
+      }
+      
+      #switchCamera:hover { background: #138496; }
+      
+      #takePhoto { order: 2; }
+      #downloadLink { order: 3; }
+      
       button, .nav-button { 
         padding: 0.875rem 1rem; 
         font-size: 1rem; 
@@ -214,6 +224,7 @@
 
     <div class="controls">
       <button id="openCamera">📱 Abrir Cámara</button>
+      <button id="switchCamera" style="display:none;">🔄 Cambiar Cámara</button>
       <button id="takePhoto" disabled>📸 Tomar Foto</button>
       <a id="downloadLink" download="foto.png">💾 Descargar Foto</a>
     </div>

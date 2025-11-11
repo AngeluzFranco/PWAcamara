@@ -1,5 +1,6 @@
 // app.js - lógica principal de la cámara para la PWA
 const openCameraBtn = document.getElementById('openCamera');
+const switchCameraBtn = document.getElementById('switchCamera');
 const cameraContainer = document.getElementById('cameraContainer');
 const video = document.getElementById('video');
 const takePhotoBtn = document.getElementById('takePhoto');
@@ -22,12 +23,39 @@ let savedPhotos = []; // Array para fotos guardadas
 let currentPhotoIndex = 0; // Índice de la foto actual en la galería
 const MAX_PHOTOS = 3; // Máximo de fotos a guardar
 
+// Variables para manejo de cámaras
+let currentFacingMode = 'environment'; // 'environment' = trasera, 'user' = frontal
+let availableCameras = []; // Lista de cámaras disponibles
+
+// Función para detectar cámaras disponibles
+async function detectAvailableCameras() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    availableCameras = devices.filter(device => device.kind === 'videoinput');
+    
+    // Mostrar botón de cambiar cámara solo si hay múltiples cámaras
+    if (availableCameras.length > 1) {
+      switchCameraBtn.style.display = 'block';
+      console.log(`${availableCameras.length} cámaras detectadas`);
+    } else {
+      switchCameraBtn.style.display = 'none';
+      console.log('Solo una cámara disponible');
+    }
+  } catch (error) {
+    console.error('Error detectando cámaras:', error);
+    switchCameraBtn.style.display = 'none';
+  }
+}
+
 async function openCamera() {
   try {
+    // Detectar cámaras disponibles primero
+    await detectAvailableCameras();
+    
     const constraints = {
       video: {
-        facingMode: { ideal: 'environment' }, // Cámara trasera preferida en móviles
-        width: { ideal: 1280, max: 1920 }, // Mayor resolución para móviles modernos
+        facingMode: { ideal: currentFacingMode },
+        width: { ideal: 1280, max: 1920 },
         height: { ideal: 720, max: 1080 }
       }
     };
@@ -38,10 +66,61 @@ async function openCamera() {
     openCameraBtn.textContent = '📱 Cámara Activa';
     openCameraBtn.disabled = true;
     takePhotoBtn.disabled = false;
-    console.log('Cámara abierta exitosamente');
+    
+    // Mostrar botón cambiar cámara si hay múltiples
+    if (availableCameras.length > 1) {
+      switchCameraBtn.style.display = 'block';
+      switchCameraBtn.disabled = false;
+    }
+    
+    console.log('Cámara abierta:', currentFacingMode === 'environment' ? 'Trasera' : 'Frontal');
   } catch (error) {
     console.error('Error al acceder a la cámara:', error);
     alert('No se pudo acceder a la cámara. Verifica los permisos en la configuración del navegador.');
+  }
+}
+
+// Función para cambiar entre cámaras
+async function switchCamera() {
+  if (!stream) return;
+  
+  try {
+    // Cambiar entre frontal y trasera
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    
+    // Detener stream actual
+    stream.getTracks().forEach(track => track.stop());
+    
+    // Abrir nueva cámara
+    const constraints = {
+      video: {
+        facingMode: { exact: currentFacingMode },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 }
+      }
+    };
+
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    
+    // Actualizar texto del botón
+    const cameraType = currentFacingMode === 'environment' ? 'Trasera' : 'Frontal';
+    console.log('Cambiado a cámara:', cameraType);
+    
+    // Feedback visual temporal
+    switchCameraBtn.textContent = `✅ ${cameraType}`;
+    setTimeout(() => {
+      switchCameraBtn.textContent = '🔄 Cambiar Cámara';
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Error al cambiar cámara:', error);
+    
+    // Revertir el modo si falló
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    
+    // Mostrar mensaje de error más específico
+    alert('No se pudo cambiar a la otra cámara. Es posible que el dispositivo no tenga cámara frontal/trasera.');
   }
 }
 
@@ -84,6 +163,7 @@ function closeCamera() {
     video.srcObject = null;
   }
   cameraContainer.style.display = 'none';
+  switchCameraBtn.style.display = 'none'; // Ocultar botón de cambiar cámara
   openCameraBtn.textContent = '📱 Abrir Cámara';
   openCameraBtn.disabled = false;
   takePhotoBtn.disabled = true;
@@ -91,6 +171,7 @@ function closeCamera() {
 }
 
 openCameraBtn.addEventListener('click', openCamera);
+switchCameraBtn.addEventListener('click', switchCamera);
 takePhotoBtn.addEventListener('click', takePhoto);
 window.addEventListener('beforeunload', () => { closeCamera(); });
 
